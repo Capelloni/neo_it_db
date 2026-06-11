@@ -1,0 +1,69 @@
+name: CI — neo_it_db
+
+# Se déclenche à chaque push et Pull Request sur main
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verification-php:
+    name: Vérification du code PHP
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupérer le code depuis GitHub
+      - name: 📥 Cloner le dépôt
+        uses: actions/checkout@v4
+
+      # 2. Installer PHP avec les extensions utilisées dans api.php
+      - name: 🐘 Installer PHP 8.1
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+          extensions: pdo, pdo_mysql
+
+      # 3. Vérifier la syntaxe de tous les fichiers PHP
+      - name: 🔍 Vérifier la syntaxe PHP
+        run: |
+          echo "=== Fichiers PHP trouvés ==="
+          find . -name "*.php" \
+            -not -path "./.git/*" \
+            -not -path "./vendor/*"
+
+          echo ""
+          echo "=== Vérification syntaxe ==="
+          ERROR=0
+          for file in $(find . -name "*.php" -not -path "./.git/*" -not -path "./vendor/*"); do
+            php -l "$file"
+            if [ $? -ne 0 ]; then
+              ERROR=1
+            fi
+          done
+
+          if [ $ERROR -ne 0 ]; then
+            echo "❌ Des erreurs PHP ont été détectées !"
+            exit 1
+          fi
+          echo "✅ Tous les fichiers PHP sont valides"
+
+      # 4. Vérifier que config.php n'a pas été accidentellement commité
+      - name: 🔐 Vérifier que config.php est bien ignoré
+        run: |
+          if [ -f "config/config.php" ]; then
+            echo "🚨 ALERTE : config/config.php est présent dans le repo !"
+            echo "Ce fichier contient des mots de passe et ne doit JAMAIS être commité."
+            exit 1
+          fi
+          echo "✅ config/config.php est bien absent du repo"
+
+      # 5. Résumé final
+      - name: 📋 Résumé
+        run: |
+          echo "================================"
+          echo "  ✅ Pipeline CI terminé avec succès"
+          echo "  Projet : neo_it_db"
+          echo "  PHP    : 8.1"
+          echo "  Date   : $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "================================"
