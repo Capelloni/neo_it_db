@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEO INDUSTRY S.A. - Gestion de Parc IT</title>
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* --- CSS VARIABLES --- */
+        :root {
+            --primary-color: #4B3621; --primary-light: #6F4E37;
+            --accent-color: #D4AF37;
+            --bg-color: #F5F5F0; --sidebar-bg: #3E2723;
+            --text-color: #2C2C2C; --text-light: #F5F5F0;
+            --success-color: #27ae60; --warning-color: #f39c12; --danger-color: #c0392b;
+            --info-color: #3498db;
+            --border-radius: 8px; --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        body { font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* --- LOADING & OVERLAY --- */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 3000; display: none;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+        .spinner { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- LAYOUT --- */
+        #sidebar { width: 280px; background-color: var(--sidebar-bg); color: var(--text-light); display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; }
+        #main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        header { background-color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--accent-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        #view-container { flex: 1; padding: 2rem; overflow-y: auto; }
+
+        /* --- SIDEBAR --- */
+        .logo-area { padding: 1.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); }
+        .logo-area img { width: 90px; height: auto; margin-bottom: 0.5rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+        .logo-area h2 { font-size: 0.9rem; font-family: 'Georgia', serif; color: var(--accent-color); letter-spacing: 1px; font-weight: bold; }
+
+        nav ul { list-style: none; padding-top: 1rem; }
+        nav li { padding: 0.8rem 1.5rem; cursor: pointer; display: flex; align-items: center; transition: all 0.2s; font-size: 0.95rem; color: #ccc;}
+        nav li:hover, nav li.active { background-color: rgba(212, 175, 55, 0.15); border-left: 4px solid var(--accent-color); color: white; padding-left: 1.8rem;}
+        nav li i { margin-right: 10px; width: 20px; text-align: center; }
+
+        /* --- COMPONENTS --- */
+        .card { background: white; border-radius: var(--border-radius); padding: 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: var(--border-radius); box-shadow: var(--shadow); border-top: 4px solid var(--primary-color); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .stat-card h3 { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 0.2rem; }
+        .stat-card p { font-size: 0.85rem; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
+        .search-box { flex: 1; position: relative; min-width: 250px; }
+        .search-box input { width: 100%; padding: 0.8rem 1rem; border: 1px solid #ddd; border-radius: var(--border-radius); }
+        
+        .btn { padding: 0.8rem 1.5rem; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-accent { background-color: var(--accent-color); color: #fff; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-info { background-color: var(--info-color); color: white; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+        /* --- GRAPHIQUES --- */
+        .charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .chart-card { background: white; padding: 1.5rem; border-radius: var(--border-radius); box-shadow: var(--shadow); }
+        .chart-card h3 { margin-bottom: 1rem; color: var(--primary-color); }
+
+        /* --- ALERTES --- */
+        .alert-badge { position: fixed; top: 20px; right: 20px; background: var(--warning-color); color: white; padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; z-index: 1000; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0); } 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); } }
+
+        /* --- MODAL --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; width: 650px; max-width: 95%; max-height: 90vh; overflow-y: auto; border-radius: var(--border-radius); padding: 2rem; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.85rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 4px; }
+
+        /* --- TOAST --- */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: white; padding: 1rem 1.5rem; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--success-color); min-width: 300px; }
+        .toast.error { border-left-color: var(--danger-color); }
+        .toast.warning { border-left-color: var(--warning-color); }
+        .toast.info { border-left-color: var(--info-color); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- TABLES --- */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        thead { background-color: #f8f9fa; border-bottom: 2px solid var(--primary-color); }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
+        tr:hover { background-color: #fafafa; }
+        th { font-weight: 700; color: var(--primary-color); text-transform: uppercase; font-size: 0.8rem; }
+
+        .badge { padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; display: inline-block;}
+        .badge-ok { background-color: #e8f5e9; color: #2e7d32; }
+        .badge-warn { background-color: #fff8e1; color: #f57f17; }
+        .badge-err { background-color: #ffebee; color: #c62828; }
+        .badge-neu { background-color: #eceff1; color: #455a64; }
+
+        .btn-warning { background-color: var(--warning-color); color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+
+        /* --- IMPORT/EXPORT --- */
+        .import-box { background: white; padding: 1.5rem; border-radius: var(--border-radius); border: 2px dashed #ddd; text-align: center; margin-bottom: 1rem; }
+        .import-box:hover { border-color: var(--accent-color); }
+
+        @media (max-width: 768px) {
+            #sidebar { position: absolute; left: -280px; height: 100%; z-index: 100; }
+            #sidebar.active { left: 0; }
+            header { padding: 1rem; }
+            .toolbar { flex-direction: column; }
+            .charts-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay"><div class="spinner"></div><div style="margin-top:10px; font-weight:bold;">Traitement en cours...</div></div>
+
+    <aside id="sidebar">
+        <div class="logo-area">
+            <img src="https://z-cdn-media.chatglm.cn/files/e4fe056d-b085-4ecb-9182-a67f30739955.png?auth_key=1868833992-21d5b5f6532448d69b21de307989b73b-0-33b786de1b5ce0e7f266f1093fb6d1ca" alt="NEO Logo">
+            <h2>NEO INDUSTRY S.A.</h2>
+            <div style="font-size:0.7rem; color:#aaa; margin-top:0.5rem;">Gestion de Parc IT</div>
+        </div>
+        <nav>
+            <ul>
+                <li class="active" onclick="router('dashboard')"><i>📊</i> Tableau de bord</li>
+                <li onclick="router('inventory')"><i>💻</i> Parc Informatique</li>
+                <li onclick="router('employees')"><i>👥</i> Employés</li>
+                <li onclick="router('maintenance')"><i>🔧</i> Maintenance</li>
+                <li onclick="router('reports')"><i>📈</i> Rapports</li>
+                <li onclick="router('import')"><i>📤</i> Import/Export</li>
+                <li onclick="router('settings')"><i>⚙️</i> Paramètres</li>
+            </ul>
+        </nav>
+        <div style="margin-top: auto; padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: #aaa;">
+            <div>👤 Connecté: <span id="sidebarAdminName">Admin</span></div>
+            <div>🕐 Dernière synchro: <span id="lastSync">--:--</span></div>
+        </div>
+    </aside>
+
+    <main id="main-content">
+        <header>
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <button class="btn btn-sm" onclick="toggleSidebar()" style="display:none;" id="menuToggle">☰</button>
+                <h3 id="page-title">Tableau de bord</h3>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <div id="maintenanceAlert" class="alert-badge" style="display:none;" onclick="router('maintenance')">
+                    ⚠️ <span id="alertCount">0</span> alertes
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:bold; color: var(--primary-color);" id="adminName">Admin DSI</div>
+                    <div style="font-size:0.75rem; color:#666;" id="connectionStatus">Connecté</div>
+                </div>
+                <div style="width:40px; height:40px; background:var(--primary-color); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;" id="adminAvatar">AD</div>
+            </div>
+        </header>
+
+        <div id="view-container"></div>
+    </main>
+
+    <!-- Modal générique -->
+    <div class="modal-overlay" id="genericModal" onclick="handleModalOverlayClick(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalTitle">Titre</h3>
+                <button class="btn btn-sm" onclick="closeModal()" style="background:none; font-size:1.2rem; color:#666;" title="Fermer">✕</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Container pour toasts -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const API_URL = 'api.php';
+        const loadingOverlay = document.getElementById('loading-overlay');
+        let maintenanceAlerts = [];
+
+        // --- APPLICATION CORE ---
+        const App = {
+            equipment: [],
+            employees: [],
+            stats: {},
+
+            async init() {
+                this.updateLastSync();
+                
+                // Charger le profil admin
+                const adminProfile = JSON.parse(localStorage.getItem('neo_admin_profile'));
+                if(adminProfile) {
+                    document.getElementById('adminName').innerText = adminProfile.name;
+                    document.getElementById('sidebarAdminName').innerText = adminProfile.name;
+                    document.getElementById('adminAvatar').innerText = adminProfile.name.substring(0,2).toUpperCase();
+                }
+                
+                // Charger les données initiales
+                await Promise.all([
+                    this.fetchEmployees(),
+                    this.fetchEquipment(),
+                    this.fetchStats()
+                ]);
+                
+                // Calculer les alertes de maintenance après chargement des équipements
+                await this.checkMaintenanceAlerts();
+                
+                renderDashboard();
+                
+                // Mettre à jour les alertes toutes les 5 minutes
+                setInterval(async () => {
+                    await this.fetchEquipment();
+                    await this.checkMaintenanceAlerts();
+                }, 5 * 60 * 1000);
+                
+                // Mettre à jour l'heure de synchro
+                setInterval(() => this.updateLastSync(), 60000);
+            },
+
+            async fetch(url, options = {}) {
+                showLoading();
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    showToast("Erreur serveur: " + error.message, true);
+                    console.error("Fetch error:", error);
+                    throw error;
+                } finally {
+                    hideLoading();
+                }
+            },
+
+            async fetchEmployees() {
+                this.employees = await this.fetch(`${API_URL}?entity=employees&action=get_all`);
+                return this.employees;
+            },
+
+           async fetchEquipment() {
+    try {
+        const data = await this.fetch(`${API_URL}?entity=equipment&action=get_all`);
+        this.equipment = data;
+        return this.equipment;
+    } catch (error) {
+        console.error("Erreur chargement équipements:", error);
+        this.equipment = [];
+        return [];
+    }
+},
+
+            async fetchStats() {
+                this.stats = await this.fetch(`${API_URL}?entity=equipment&action=stats`);
+                return this.stats;
+            },
+
+            async checkMaintenanceAlerts() {
+                try {
+                    // Calculate maintenance alerts from loaded equipment data
+                    const currentYear = new Date().getFullYear();
+                    maintenanceAlerts = App.equipment
+                        .filter(e => e.year && (currentYear - parseInt(e.year)) >= 3)
+                        .map(e => ({
+                            ...e,
+                            age_years: currentYear - parseInt(e.year)
+                        }))
+                        .sort((a, b) => b.age_years - a.age_years);
+                    
+                    const alertBadge = document.getElementById('maintenanceAlert');
+                    const alertCount = document.getElementById('alertCount');
+                    
+                    if (maintenanceAlerts.length > 0) {
+                        alertBadge.style.display = 'block';
+                        alertCount.textContent = maintenanceAlerts.length;
+                    } else {
+                        alertBadge.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.warn('Erreur vérification alertes:', e);
+                }
+            },
+
+            updateLastSync() {
+                const now = new Date();
+                document.getElementById('lastSync').textContent = 
+                    now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            },
+
+            async addEquipment(data) {
+    try {
+        const result = await this.fetch(`${API_URL}?entity=equipment&action=create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        showToast('Équipement ajouté avec succès');
+        
+        // Ajouter le nouvel équipement à la liste
+        if (result.equipment) {
+            this.equipment.unshift(result.equipment); // Ajouter au début
+        } else {
+            // Si l'API ne retourne pas l'équipement, recharger tout
+            await this.fetchEquipment();
+        }
+        
+        return result;
+    } catch (error) {
+        showToast("Erreur lors de l'ajout: " + error.message, true);
+        throw error;
+    }
+},
+
+            async updateEquipment(id, data) {
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=equipment&action=update`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...data, id })
+                    });
+                    
+                    showToast('Équipement mis à jour');
+                    await this.fetchEquipment();
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la mise à jour: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async deleteEquipment(id) {
+                if (!confirm("Êtes-vous sûr de vouloir supprimer cet équipement ?")) {
+                    return;
+                }
+                
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=equipment&action=delete&id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    showToast('Équipement supprimé');
+                    await this.fetchEquipment();
+                    await this.checkMaintenanceAlerts();
+                    
+                    // Recharger la vue si on est sur l'inventaire
+                    if (document.getElementById('page-title').innerText.includes('Parc Informatique')) {
+                        router('inventory');
+                    }
+                    
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la suppression: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async addEmployee(data) {
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=employees&action=create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    showToast('Employé ajouté avec succès');
+                    await this.fetchEmployees();
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de l'ajout: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async updateEmployee(id, data) {
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=employees&action=update`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...data, id })
+                    });
+                    
+                    showToast('Employé mis à jour');
+                    await this.fetchEmployees();
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la mise à jour: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async deleteEmployee(id) {
+                if (!confirm("Êtes-vous sûr de vouloir supprimer cet employé ?")) {
+                    return;
+                }
+                
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=employees&action=delete&id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    showToast('Employé supprimé');
+                    await this.fetchEmployees();
+                    
+                    // Recharger la vue si on est sur les employés
+                    if (document.getElementById('page-title').innerText.includes('Employés')) {
+                        router('employees');
+                    }
+                    
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la suppression: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async updateEquipmentStatus(id, status, employee_id = null) {
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=equipment&action=update_status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id, status, employee_id })
+                    });
+                    
+                    showToast('Statut mis à jour');
+                    await this.fetchEquipment();
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la mise à jour: " + error.message, true);
+                    throw error;
+                }
+            },
+
+            async resetSystem() {
+                if (!confirm("⚠️ ATTENTION: Cette action supprimera TOUTES les données. Êtes-vous sûr ?")) {
+                    return;
+                }
+                
+                try {
+                    const result = await this.fetch(`${API_URL}?entity=settings&action=reset_system`, {
+                        method: 'POST'
+                    });
+                    
+                    showToast('Système réinitialisé');
+                    // Recharger les données
+                    this.equipment = [];
+                    this.employees = [];
+                    this.stats = {};
+                    
+                    router('dashboard');
+                    return result;
+                } catch (error) {
+                    showToast("Erreur lors de la réinitialisation: " + error.message, true);
+                    throw error;
+                }
+            }
+        };
+
+        // --- VIEWS ---
+        function renderDashboard() {
+            const stats = App.stats.general || { total: 0, assigned: 0, maintenance: 0, stock: 0 };
+            
+            document.getElementById('view-container').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card" style="cursor:pointer;" onclick="router('inventory')">
+                        <h3>${stats.total}</h3><p>Total Équipements</p>
+                    </div>
+                    <div class="stat-card" style="border-top-color: var(--success-color); cursor:pointer;" onclick="router('inventory')">
+                        <h3>${stats.assigned}</h3><p>En service</p>
+                    </div>
+                    <div class="stat-card" style="border-top-color: var(--warning-color); cursor:pointer;" onclick="router('maintenance')">
+                        <h3>${stats.maintenance}</h3><p>En Panne / Maintenance</p>
+                    </div>
+                    <div class="stat-card" style="border-top-color: var(--accent-color); cursor:pointer;" onclick="router('employees')">
+                        <h3>${App.employees.length}</h3><p>Employés</p>
+                    </div>
+                </div>
+                
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>Répartition par type</h3>
+                        <canvas id="typeChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Statut des équipements</h3>
+                        <canvas id="statusChart" height="250"></canvas>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3>⚠️ Alertes maintenance préventive</h3>
+                        ${maintenanceAlerts.length > 0 ? `<span class="badge badge-warn">${maintenanceAlerts.length} alertes</span>` : ''}
+                    </div>
+                    <div id="maintenanceAlertsList"></div>
+                </div>
+                
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3>🕐 Équipements récents</h3>
+                        <button class="btn btn-sm btn-primary" onclick="router('inventory')">Voir tout</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr><th>Type</th><th>Modèle</th><th>Utilisateur</th><th>Statut</th></tr>
+                            </thead>
+                            <tbody>
+                                ${App.equipment.slice(0, 5).map(item => `
+                                    <tr>
+                                        <td><span class="badge" style="background:#f3e5f5; color:#7b1fa2;">${item.type}</span></td>
+                                        <td>${item.model}</td>
+                                        <td>${item.firstname ? `${item.firstname} ${item.lastname}` : '<span class="badge badge-neu">Stock</span>'}</td>
+                                        <td><span class="badge ${item.status === 'assigned' ? 'badge-ok' : item.status === 'maintenance' ? 'badge-err' : 'badge-neu'}">
+                                            ${item.status === 'assigned' ? 'Assigné' : item.status === 'maintenance' ? 'Maintenance' : 'Stock'}
+                                        </span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            renderCharts();
+            renderMaintenanceAlerts();
+        }
+
+        function renderCharts() {
+            // Chart 1: Répartition par type
+            const typeData = App.stats.by_type || [];
+            if (typeData.length > 0) {
+                new Chart(document.getElementById('typeChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: typeData.map(t => t.type),
+                        datasets: [{
+                            data: typeData.map(t => t.count),
+                            backgroundColor: [
+                                '#4B3621', '#6F4E37', '#D4AF37', '#27ae60', 
+                                '#3498db', '#9b59b6', '#e74c3c', '#f39c12'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
+            }
+
+            // Chart 2: Statut des équipements
+            const statusChart = new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Assigné', 'Maintenance', 'Stock'],
+                    datasets: [{
+                        data: [
+                            App.stats.general?.assigned || 0,
+                            App.stats.general?.maintenance || 0,
+                            App.stats.general?.stock || 0
+                        ],
+                        backgroundColor: ['#27ae60', '#f39c12', '#3498db']
+                    }]
+                }
+            });
+        }
+
+        function renderMaintenanceAlerts() {
+            const container = document.getElementById('maintenanceAlertsList');
+            if (maintenanceAlerts.length === 0) {
+                container.innerHTML = '<p style="color:#666;">Aucune alerte de maintenance préventive.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <p style="color:var(--warning-color); margin-bottom:1rem;">
+                    ⚠️ ${maintenanceAlerts.length} équipement(s) ont plus de 3 ans et nécessitent une vérification
+                </p>
+                <table>
+                    <thead>
+                        <tr><th>Équipement</th><th>Âge</th><th>Utilisateur</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${maintenanceAlerts.slice(0, 5).map(item => `
+                            <tr>
+                                <td><strong>${item.type}</strong><br><small>${item.model}</small></td>
+                                <td>${item.age_years} ans</td>
+                                <td>${item.firstname ? `${item.firstname} ${item.lastname}` : 'Stock'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="updateEquipStatus(${item.id}, 'maintenance')">
+                                        Marquer en maintenance
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ${maintenanceAlerts.length > 5 ? 
+                    `<p style="margin-top:1rem; text-align:center;">
+                        <button class="btn btn-sm" onclick="router('maintenance')">
+                            Voir toutes les alertes (${maintenanceAlerts.length})
+                        </button>
+                    </p>` : ''}
+            `;
+        }
+
+        function renderInventory() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <input type="text" id="invSearch" placeholder="Rechercher équipement..." onkeyup="filterInventory()">
+                        </div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <select id="invFilterType" onchange="filterInventory()" style="padding:0.5rem; border-radius:4px;">
+                                <option value="">Tous types</option>
+                                ${[...new Set(App.equipment.map(e => e.type))].map(t => 
+                                    `<option value="${t}">${t}</option>`
+                                ).join('')}
+                            </select>
+                            <select id="invFilterStatus" onchange="filterInventory()" style="padding:0.5rem; border-radius:4px;">
+                                <option value="">Tous statuts</option>
+                                <option value="assigned">Assigné</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="stock">Stock</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="openAddEquipModal()">+ Nouvel Équipement</button>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Type</th><th>ID/Modèle</th><th>Série</th><th>Utilisateur</th>
+                                    <th>Statut</th><th>Année</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            filterInventory();
+        }
+
+        function filterInventory() {
+            const search = document.getElementById('invSearch')?.value.toLowerCase() || '';
+            const typeFilter = document.getElementById('invFilterType')?.value || '';
+            const statusFilter = document.getElementById('invFilterStatus')?.value || '';
+            
+            const filtered = App.equipment.filter(e => {
+                const matchesSearch = !search || 
+                    e.model.toLowerCase().includes(search) || 
+                    (e.serial && e.serial.toLowerCase().includes(search)) ||
+                    (e.identifier && e.identifier.toLowerCase().includes(search)) ||
+                    (e.firstname && (e.firstname + ' ' + e.lastname).toLowerCase().includes(search));
+                
+                const matchesType = !typeFilter || e.type === typeFilter;
+                const matchesStatus = !statusFilter || e.status === statusFilter;
+                
+                return matchesSearch && matchesType && matchesStatus;
+            });
+            
+            const tbody = document.getElementById('inventoryBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = filtered.map(item => `
+                <tr>
+                    <td><span class="badge" style="background:#f3e5f5; color:#7b1fa2;">${item.type}</span></td>
+                    <td>
+                        <div><strong>${item.identifier || '-'}</strong></div>
+                        <small style="color:#666;">${item.model.substring(0, 30)}</small>
+                    </td>
+                    <td>${item.serial || '-'}</td>
+                    <td>
+                        ${item.firstname ? 
+                            `<div>${item.firstname} ${item.lastname}</div>
+                             <small style="color:#666;">${item.department}</small>` : 
+                            '<span class="badge badge-neu">Stock</span>'}
+                    </td>
+                    <td>
+                        <span class="badge ${item.status === 'assigned' ? 'badge-ok' : 
+                                          item.status === 'maintenance' ? 'badge-err' : 'badge-neu'}">
+                            ${item.status === 'assigned' ? 'Assigné' : item.status === 'maintenance' ? 'Maintenance' : 'Stock'}
+                        </span>
+                    </td>
+                    <td>${item.year || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openEditEquipModal(${item.id})" title="Modifier">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="App.deleteEquipment(${item.id})" title="Supprimer">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderEmployees() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <input type="text" id="empSearch" placeholder="Rechercher employé..." onkeyup="filterEmployees()">
+                        </div>
+                        <button class="btn btn-accent" onclick="openAddEmpModal()">+ Nouvel Employé</button>
+                    </div>
+                    
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nom</th><th>Prénom</th><th>Email</th><th>Département</th><th>Service</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            filterEmployees();
+        }
+
+        function filterEmployees() {
+            const search = document.getElementById('empSearch')?.value.toLowerCase() || '';
+            
+            const filtered = App.employees.filter(e => {
+                return !search || 
+                    e.firstname.toLowerCase().includes(search) || 
+                    e.lastname.toLowerCase().includes(search) ||
+                    (e.email && e.email.toLowerCase().includes(search)) ||
+                    (e.department && e.department.toLowerCase().includes(search));
+            });
+            
+            const tbody = document.getElementById('employeesBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = filtered.map(emp => `
+                <tr>
+                    <td><strong>${emp.lastname}</strong></td>
+                    <td>${emp.firstname}</td>
+                    <td>${emp.email || '-'}</td>
+                    <td>${emp.department}</td>
+                    <td>${emp.service || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-accent" onclick="openEditEmpModal(${emp.id})" title="Modifier">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="App.deleteEmployee(${emp.id})" title="Supprimer">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderMaintenance() {
+            const brokenItems = App.equipment.filter(i => i.status === 'maintenance');
+            
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <h3>Équipements en maintenance</h3>
+                    ${brokenItems.length === 0 ? 
+                        '<p style="color:#666;">Aucun équipement en maintenance.</p>' : 
+                        `
+                        <table>
+                            <thead>
+                                <tr><th>Équipement</th><th>Utilisateur</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                ${brokenItems.map(item => `
+                                    <tr>
+                                        <td>
+                                            <div><strong>${item.type}: ${item.model}</strong></div>
+                                            <small style="color:#666;">${item.identifier || ''} - ${item.serial || ''}</small>
+                                        </td>
+                                        <td>${item.firstname ? item.firstname + ' ' + item.lastname : 'Stock'}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success" onclick="updateEquipStatus(${item.id}, 'assigned')">Réparer</button>
+                                            <button class="btn btn-sm" onclick="updateEquipStatus(${item.id}, 'stock')">Mettre en stock</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        `}
+                </div>
+                
+                <div class="card">
+                    <h3>Alertes maintenance préventive</h3>
+                    <div id="preventiveMaintenanceList"></div>
+                </div>
+            `;
+            
+            renderPreventiveMaintenance();
+        }
+
+        function renderPreventiveMaintenance() {
+            const container = document.getElementById('preventiveMaintenanceList');
+            if (maintenanceAlerts.length === 0) {
+                container.innerHTML = '<p style="color:#666;">Aucune alerte de maintenance préventive.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <p style="color:var(--warning-color); margin-bottom:1rem;">
+                    ⚠️ ${maintenanceAlerts.length} équipement(s) ont plus de 3 ans
+                </p>
+                <table>
+                    <thead>
+                        <tr><th>Équipement</th><th>Âge</th><th>Utilisateur</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        ${maintenanceAlerts.map(item => `
+                            <tr>
+                                <td><strong>${item.type}</strong><br><small>${item.model}</small></td>
+                                <td>${item.age_years} ans</td>
+                                <td>${item.firstname ? `${item.firstname} ${item.lastname}` : 'Stock'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="updateEquipStatus(${item.id}, 'maintenance')">
+                                        Marquer en maintenance
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="updateEquipStatus(${item.id}, 'assigned')">
+                                        Maintenir en service
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderReports() {
+            // Calculate department stats from local data
+            const deptMap = {};
+            App.equipment.forEach(e => {
+                if (e.department) {
+                    deptMap[e.department] = (deptMap[e.department] || 0) + 1;
+                }
+            });
+            App.stats.by_department = Object.entries(deptMap)
+                .map(([department, count]) => ({ department, count }))
+                .sort((a, b) => b.count - a.count);
+
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <h2>📈 Rapports et Statistiques</h2>
+                    
+                    <div class="stats-grid" style="margin-bottom:2rem;">
+                        <div class="stat-card"><h3>${App.stats.general?.total || 0}</h3><p>Total équipements</p></div>
+                        <div class="stat-card" style="border-top-color:var(--success-color)"><h3>${App.stats.general?.assigned || 0}</h3><p>En service</p></div>
+                        <div class="stat-card" style="border-top-color:var(--warning-color)"><h3>${App.stats.general?.maintenance || 0}</h3><p>En maintenance</p></div>
+                        <div class="stat-card" style="border-top-color:var(--info-color)"><h3>${App.stats.general?.stock || 0}</h3><p>En stock</p></div>
+                    </div>
+                    
+                    <div class="charts-container">
+                        <div class="chart-card">
+                            <h3>Équipements par type</h3>
+                            <canvas id="reportTypeChart" height="250"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Équipements par département</h3>
+                            <canvas id="reportDeptChart" height="250"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:2rem;">
+                        <h3>Télécharger rapports</h3>
+                        <div style="display:flex; gap:1rem; margin-top:1rem; flex-wrap:wrap;">
+                            <button class="btn btn-success" onclick="exportData('json')">💾 Sauvegarder JSON</button>
+                            <button class="btn btn-info" onclick="exportData('csv')">📋 Exporter CSV</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            renderReportCharts();
+        }
+
+        function renderReportCharts() {
+            // Chart 1: Par type
+            const typeData = App.stats.by_type || [];
+            if (typeData.length > 0) {
+                new Chart(document.getElementById('reportTypeChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: typeData.map(t => t.type),
+                        datasets: [{
+                            label: 'Nombre',
+                            data: typeData.map(t => t.count),
+                            backgroundColor: '#4B3621'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // Chart 2: Par département
+            const deptData = App.stats.by_department || [];
+            if (deptData.length > 0) {
+                new Chart(document.getElementById('reportDeptChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: deptData.map(d => d.department.substring(0, 20)),
+                        datasets: [{
+                            label: 'Équipements',
+                            data: deptData.map(d => d.count),
+                            backgroundColor: '#D4AF37'
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            } else {
+                // Afficher un message si pas de données par département
+                const ctx = document.getElementById('reportDeptChart');
+                if (ctx) {
+                    const parent = ctx.parentElement;
+                    ctx.style.display = 'none';
+                    const msg = document.createElement('p');
+                    msg.style.color = '#666';
+                    msg.style.textAlign = 'center';
+                    msg.style.padding = '2rem';
+                    msg.textContent = 'Aucune donnée par département disponible';
+                    parent.appendChild(msg);
+                }
+            }
+        }
+
+        function renderImportExport() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <h2>📤 Importation & Exportation</h2>
+                    
+                    <div class="import-box">
+                        <h3>Exportation des données</h3>
+                        <p style="color:#666; margin:1rem 0;">Téléchargez une copie complète de vos données</p>
+                        <div style="display:flex; gap:1rem; justify-content:center;">
+                            <button class="btn btn-success" onclick="exportData('json')">💾 Sauvegarder JSON</button>
+                            <button class="btn btn-info" onclick="exportData('csv')">📋 Exporter CSV</button>
+                        </div>
+                    </div>
+                    
+                    <div class="import-box">
+                        <h3>Importation depuis Excel</h3>
+                        <p style="color:#666; margin:1rem 0;">Importez vos données depuis un fichier Excel/CSV</p>
+                        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="margin:1rem 0; padding:0.5rem; width:100%;">
+                        <button class="btn btn-accent" onclick="handleExcelImport()">📤 Importer</button>
+                        <div style="margin-top:1rem; font-size:0.8rem; color:#666;">
+                            Format attendu: Type, Identifiant, Modèle, Série, Nom, Prénom, Département, Année
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee;">
+                        <h3 style="color:var(--danger-color);">Zone de danger</h3>
+                        <p style="color:#666; margin-bottom:1rem;">Attention : Ces actions sont irréversibles.</p>
+                        <button class="btn btn-danger" onclick="App.resetSystem()">⚠️ Réinitialiser le système complet</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSettings() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="card">
+                    <h2>Paramètres du système</h2>
+                    
+                    <div style="margin-bottom:2rem;">
+                        <h3>Profil Administrateur</h3>
+                        <div class="form-group">
+                            <label>Nom affiché</label>
+                            <input type="text" id="adminNameInput" value="${document.getElementById('adminName').innerText}" style="max-width:300px;">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveAdminProfile()">Enregistrer le profil</button>
+                    </div>
+                    
+                    <div style="margin-bottom:2rem;">
+                        <h3>Types d'équipements</h3>
+                        <div style="display:flex; gap:10px; max-width:400px; margin-bottom:1rem;">
+                            <input type="text" id="newTypeInput" placeholder="Nouveau type (ex: TABLETTE)" style="flex:1; padding:0.7rem; border:1px solid #ddd; border-radius:4px;">
+                            <button class="btn btn-accent" onclick="handleAddType()">Ajouter</button>
+                        </div>
+                        <div id="typesList" style="display:flex; flex-wrap:wrap; gap:10px;">
+                            <!-- Les types seront chargés ici -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            loadTypes();
+        }
+
+        // --- MODAL FUNCTIONS ---
+        function openAddEquipModal() {
+            document.getElementById('modalTitle').innerText = "Ajouter un équipement";
+            document.getElementById('modalBody').innerHTML = getEquipFormHtml();
+            document.getElementById('genericModal').classList.add('open');
+            populateEmployeeSelect();
+            
+            document.getElementById('equipForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                
+                // Convertir les valeurs
+                data.employee_id = data.employee_id ? parseInt(data.employee_id) : null;
+                data.year = data.year ? parseInt(data.year) : null;
+                
+                // S'assurer que le statut est correct
+                if (data.employee_id) {
+                    data.status = 'assigned';
+                }
+                
+                try {
+                    await App.addEquipment(data);
+                    closeModal();
+                    await App.fetchEquipment();
+                    await App.checkMaintenanceAlerts();
+                    router('inventory');
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+        }
+        async function openEditEquipModal(id) {
+            try {
+                const response = await fetch(`${API_URL}?entity=equipment&action=get&id=${id}`);
+                const item = await response.json();
+                
+                if (item.error) {
+                    showToast(item.error, true);
+                    return;
+                }
+                
+                document.getElementById('modalTitle').innerText = "Modifier l'équipement";
+                document.getElementById('modalBody').innerHTML = getEquipFormHtml(item);
+                document.getElementById('genericModal').classList.add('open');
+                populateEmployeeSelect(item.employee_id);
+                
+                document.getElementById('equipForm').onsubmit = async (e) => {
+                    e.preventDefault();
+                    const data = Object.fromEntries(new FormData(e.target).entries());
+                    data.id = id;
+                    data.employee_id = data.employee_id ? parseInt(data.employee_id) : null;
+                    data.year = data.year ? parseInt(data.year) : null;
+                    
+                    try {
+                        await App.updateEquipment(id, data);
+                        await App.checkMaintenanceAlerts();
+                        closeModal();
+                        router('inventory');
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+            } catch (error) {
+                showToast("Erreur lors du chargement", true);
+            }
+        }
+
+        function getEquipFormHtml(data = {}) {
+            // Charger les types depuis le localStorage
+            const equipmentTypes = JSON.parse(localStorage.getItem('neo_eq_types') || '["LAPTOP", "DESKTOP", "IMPRIMANTE", "SWITCH", "TELEPHONE FIXE", "AUTRE"]');
+            
+            return `
+                <form id="equipForm">
+                    <div class="form-group">
+                        <label>Type *</label>
+                        <select name="type" required>
+                            <option value="">-- Sélectionner un type --</option>
+                            ${equipmentTypes.map(t => `<option value="${t}" ${data.type===t?'selected':''}>${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Identifiant</label>
+                        <input type="text" name="identifier" value="${data.identifier||''}" placeholder="Ex: L.G10.CDPTINF U05">
+                    </div>
+                    <div class="form-group">
+                        <label>Modèle *</label>
+                        <input type="text" name="model" value="${data.model||''}" required placeholder="Ex: PROBOOK 450G10">
+                    </div>
+                    <div class="form-group">
+                        <label>Numéro de série</label>
+                        <input type="text" name="serial" value="${data.serial||''}" placeholder="Ex: 5CD349B2FL">
+                    </div>
+                    <div class="form-group">
+                        <label>Assigner à</label>
+                        <select name="employee_id" id="empSelect">
+                            <option value="">-- En Stock --</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:1rem;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Statut *</label>
+                            <select name="status" required>
+                                <option value="stock" ${data.status==='stock'?'selected':''}>Stock</option>
+                                <option value="assigned" ${data.status==='assigned'?'selected':''}>Assigné</option>
+                                <option value="maintenance" ${data.status==='maintenance'?'selected':''}>Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Année d'acquisition</label>
+                            <input type="number" name="year" value="${data.year||''}" min="2000" max="${new Date().getFullYear() + 1}" placeholder="Ex: 2024">
+                        </div>
+                    </div>
+                    <div style="text-align:right; margin-top:1rem;">
+                        <button type="button" class="btn" onclick="closeModal()">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        function populateEmployeeSelect(selectedId = null) {
+            const select = document.getElementById('empSelect');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">-- En Stock --</option>';
+            App.employees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.id;
+                opt.text = `${emp.lastname} ${emp.firstname} (${emp.department})`;
+                if (selectedId && emp.id == selectedId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function openAddEmpModal() {
+            document.getElementById('modalTitle').innerText = "Ajouter un employé";
+            document.getElementById('modalBody').innerHTML = getEmpFormHtml();
+            document.getElementById('genericModal').classList.add('open');
+            
+            document.getElementById('empForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(e.target).entries());
+                
+                try {
+                    await App.addEmployee(data);
+                    closeModal();
+                    router('employees');
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+        }
+
+        async function openEditEmpModal(id) {
+            try {
+                const response = await fetch(`${API_URL}?entity=employees&action=get&id=${id}`);
+                const emp = await response.json();
+                
+                if (emp.error) {
+                    showToast(emp.error, true);
+                    return;
+                }
+                
+                document.getElementById('modalTitle').innerText = "Modifier l'employé";
+                document.getElementById('modalBody').innerHTML = getEmpFormHtml(emp);
+                document.getElementById('genericModal').classList.add('open');
+                
+                document.getElementById('empForm').onsubmit = async (e) => {
+                    e.preventDefault();
+                    const data = Object.fromEntries(new FormData(e.target).entries());
+                    data.id = id;
+                    
+                    try {
+                        await App.updateEmployee(id, data);
+                        closeModal();
+                        router('employees');
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+            } catch (error) {
+                showToast("Erreur lors du chargement", true);
+            }
+        }
+
+        function getEmpFormHtml(data = {}) {
+            return `
+                <form id="empForm">
+                    <div style="display:flex; gap:1rem;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Prénom *</label>
+                            <input type="text" name="firstname" value="${data.firstname||''}" required>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Nom *</label>
+                            <input type="text" name="lastname" value="${data.lastname||''}" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" value="${data.email||''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Téléphone</label>
+                        <input type="text" name="phone" value="${data.phone||''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Département *</label>
+                        <input type="text" name="department" value="${data.department||''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Service</label>
+                        <input type="text" name="service" value="${data.service||''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Poste</label>
+                        <input type="text" name="position" value="${data.position||''}">
+                    </div>
+                    <div style="text-align:right; margin-top:1rem;">
+                        <button type="button" class="btn" onclick="closeModal()">Annuler</button>
+                        <button type="submit" class="btn btn-accent">Enregistrer</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function showLoading() { loadingOverlay.style.display = 'flex'; }
+        function hideLoading() { loadingOverlay.style.display = 'none'; }
+
+        function showToast(msg, isError = false, type = '') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let className = 'toast';
+            let icon = '✅';
+            
+            if (isError) {
+                className += ' error';
+                icon = '❌';
+            } else if (type === 'warning') {
+                className += ' warning';
+                icon = '⚠️';
+            } else if (type === 'info') {
+                className += ' info';
+                icon = 'ℹ️';
+            }
+            
+            toast.className = className;
+            toast.innerHTML = `<span>${icon}</span> ${msg}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function closeModal() { 
+            document.getElementById('genericModal').classList.remove('open');
+            document.getElementById('modalBody').innerHTML = '';
+        }
+        
+        function handleModalOverlayClick(event) {
+            if (event.target === document.getElementById('genericModal')) {
+                closeModal();
+            }
+        }
+
+        function router(route) {
+            document.querySelectorAll('nav li').forEach(li => li.classList.remove('active'));
+            const activeItem = document.querySelector(`nav li[onclick="router('${route}')"]`);
+            if (activeItem) activeItem.classList.add('active');
+            
+            const titles = {
+                'dashboard': 'Tableau de bord',
+                'inventory': 'Parc Informatique',
+                'employees': 'Employés',
+                'maintenance': 'Maintenance',
+                'reports': 'Rapports',
+                'import': 'Import/Export',
+                'settings': 'Paramètres'
+            };
+            
+            document.getElementById('page-title').innerText = titles[route] || route;
+            
+            switch (route) {
+                case 'dashboard': renderDashboard(); break;
+                case 'inventory': renderInventory(); break;
+                case 'employees': renderEmployees(); break;
+                case 'maintenance': renderMaintenance(); break;
+                case 'reports': renderReports(); break;
+                case 'import': renderImportExport(); break;
+                case 'settings': renderSettings(); break;
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+        }
+
+        async function updateEquipStatus(id, status) {
+            try {
+                await App.updateEquipmentStatus(id, status);
+                await App.fetchEquipment();
+                await App.checkMaintenanceAlerts();
+                
+                // Recharger la vue actuelle
+                const currentPage = document.getElementById('page-title').innerText;
+                if (currentPage.includes('Maintenance')) {
+                    router('maintenance');
+                } else if (currentPage.includes('Parc Informatique')) {
+                    router('inventory');
+                } else {
+                    router('dashboard');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function exportData(format) {
+            const data = {
+                employees: App.employees,
+                equipment: App.equipment,
+                stats: App.stats,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            let dataStr, filename, mimeType;
+            
+            if (format === 'json') {
+                dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+                filename = `neo_it_backup_${new Date().toISOString().slice(0,10)}.json`;
+                mimeType = 'application/json';
+            } else if (format === 'csv') {
+                // Convertir les équipements en CSV
+                const headers = ['Type', 'Identifiant', 'Modèle', 'Série', 'Statut', 'Année', 'Nom', 'Prénom', 'Département'];
+                const rows = App.equipment.map(e => [
+                    e.type,
+                    e.identifier || '',
+                    e.model,
+                    e.serial || '',
+                    e.status,
+                    e.year || '',
+                    e.lastname || '',
+                    e.firstname || '',
+                    e.department || ''
+                ]);
+                
+                const csvContent = [headers, ...rows].map(row => 
+                    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+                ).join('\n');
+                
+                dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+                filename = `inventaire_${new Date().toISOString().slice(0,10)}.csv`;
+                mimeType = 'text/csv';
+            }
+            
+            const link = document.createElement('a');
+            link.setAttribute("href", dataStr);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
+            showToast(`Export ${format} téléchargé`);
+        }
+
+        function handleExcelImport() {
+            showToast("Cette fonctionnalité nécessite une implémentation serveur", true);
+            // En production, implémenter l'upload et le parsing du fichier Excel
+        }
+
+        function saveAdminProfile() {
+            const name = document.getElementById('adminNameInput').value;
+            if (name) {
+                const profile = { name: name };
+                localStorage.setItem('neo_admin_profile', JSON.stringify(profile));
+                document.getElementById('adminName').innerText = name;
+                document.getElementById('sidebarAdminName').innerText = name;
+                document.getElementById('adminAvatar').innerText = name.substring(0,2).toUpperCase();
+                showToast('Profil mis à jour');
+            }
+        }
+
+        function loadTypes() {
+            const equipmentTypes = JSON.parse(localStorage.getItem('neo_eq_types') || '["LAPTOP", "DESKTOP", "IMPRIMANTE", "SWITCH", "TELEPHONE FIXE", "AUTRE"]');
+            const container = document.getElementById('typesList');
+            
+            container.innerHTML = equipmentTypes.map(type => `
+                <div style="background:var(--primary-color); color:white; padding:0.5rem 1rem; border-radius:4px; display:flex; align-items:center; gap:10px;">
+                    ${type}
+                    ${!['LAPTOP', 'DESKTOP', 'IMPRIMANTE', 'SWITCH', 'TELEPHONE FIXE', 'AUTRE'].includes(type) ? 
+                        `<span style="cursor:pointer; font-weight:bold; opacity:0.7;" onclick="removeType('${type}')">✕</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function handleAddType() {
+            const input = document.getElementById('newTypeInput');
+            const val = input.value.trim().toUpperCase();
+            
+            if (!val) {
+                showToast('Veuillez entrer un type', true);
+                return;
+            }
+            
+            const equipmentTypes = JSON.parse(localStorage.getItem('neo_eq_types') || '["LAPTOP", "DESKTOP", "IMPRIMANTE", "SWITCH", "TELEPHONE FIXE", "AUTRE"]');
+            
+            if (equipmentTypes.includes(val)) {
+                showToast('Ce type existe déjà', true);
+                return;
+            }
+            
+            equipmentTypes.push(val);
+            equipmentTypes.sort();
+            localStorage.setItem('neo_eq_types', JSON.stringify(equipmentTypes));
+            
+            input.value = '';
+            loadTypes();
+            showToast('Type ajouté');
+        }
+
+        function removeType(type) {
+            if (!confirm(`Supprimer le type "${type}" ?`)) return;
+            
+            const equipmentTypes = JSON.parse(localStorage.getItem('neo_eq_types') || '["LAPTOP", "DESKTOP", "IMPRIMANTE", "SWITCH", "TELEPHONE FIXE", "AUTRE"]');
+            const newTypes = equipmentTypes.filter(t => t !== type);
+            localStorage.setItem('neo_eq_types', JSON.stringify(newTypes));
+            
+            loadTypes();
+            showToast('Type supprimé');
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Vérifier la largeur d'écran pour le menu mobile
+            function checkMobile() {
+                const menuToggle = document.getElementById('menuToggle');
+                if (window.innerWidth <= 768) {
+                    menuToggle.style.display = 'block';
+                } else {
+                    menuToggle.style.display = 'none';
+                    document.getElementById('sidebar').classList.remove('active');
+                }
+            }
+            
+            window.addEventListener('resize', checkMobile);
+            checkMobile();
+            
+            // Initialiser l'application
+            App.init();
+        });
+
+        // Exposer les fonctions nécessaires
+        window.App = App;
+        window.router = router;
+        window.showToast = showToast;
+        window.closeModal = closeModal;
+        window.updateEquipStatus = updateEquipStatus;
+        window.openAddEquipModal = openAddEquipModal;
+        window.openEditEquipModal = openEditEquipModal;
+        window.openAddEmpModal = openAddEmpModal;
+        window.openEditEmpModal = openEditEmpModal;
+        window.exportData = exportData;
+        window.handleExcelImport = handleExcelImport;
+        window.saveAdminProfile = saveAdminProfile;
+        window.handleAddType = handleAddType;
+        window.removeType = removeType;
+        window.filterInventory = filterInventory;
+        window.filterEmployees = filterEmployees;
+        window.handleModalOverlayClick = handleModalOverlayClick;
+        window.toggleSidebar = toggleSidebar;
+        
+        // Fermer le modal avec la touche Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

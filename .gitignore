@@ -1,0 +1,25 @@
+# ============================================
+#  neo_it_db — .gitignore
+# ============================================
+
+# --- SECURITE : jamais sur GitHub ---
+config/config.php
+
+# --- Fichiers système ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Dépendances ---
+vendor/
+node_modules/
