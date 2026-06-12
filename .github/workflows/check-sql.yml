@@ -1,0 +1,29 @@
+name: Check SQL backup
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Tous les lundis à 8h
+
+jobs:
+  audit-sql:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Cloner le dépôt
+        uses: actions/checkout@v4
+
+      - name: 🗄️ Vérifier présence du fichier SQL
+        run: |
+          if [ -f "neo_it_db.sql" ]; then
+            echo "✅ Fichier SQL présent"
+          else
+            echo "🚨 neo_it_db.sql est manquant !"
+            exit 1
+          fi
+
+      - name: 📋 Résumé
+        run: |
+          echo "================================"
+          echo "  ✅ Audit terminé avec succès"
+          echo "  Date : $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "================================"
