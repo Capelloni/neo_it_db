@@ -5,6 +5,11 @@
 # --- SECURITE : jamais sur GitHub ---
 config/config.php
 
+# --- Docker (gardé en local pour l'instant) ---
+Dockerfile
+docker-compose.yml
+config/config.docker.php
+
 # --- Fichiers système ---
 .DS_Store
 Thumbs.db
